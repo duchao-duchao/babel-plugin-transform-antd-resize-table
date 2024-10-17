@@ -1,80 +1,51 @@
-let device;
-let fileToSend;
-let gattServer;
-let writeCharacteristic;
+module.exports = function ({ types: babelTypes }) {
+  return {
+    // 对import转码
+    visitor: {
+      "ImportDeclaration|VariableDeclaration"(path, state) {
+        const TARGET_PKG_NAME = "custom-antd-resize-table";
+        //排除自定义Table组件的import
+        if (
+          state.file.opts.filename &&
+          state.file.opts.filename.includes("resize-table")
+        ) {
+          return;
+        }
+        //resize-table已经import引入,直接return
+        if (
+          path.isImportDeclaration() &&
+          path.get("source").isStringLiteral() &&
+          path.get("source").node.value === TARGET_PKG_NAME
+        ) {
+          return;
+        }
 
-document.getElementById('connectBtn').addEventListener('click', async () => {
-  try {
-    // Request Bluetooth device
-    device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: ['0000ff11-0000-1000-8000-00805f9b34fb'] }], // Replace with actual service UUIDs for file transfer
-      optionalServices: ['0000ff01-0000-1000-8000-00805f9b34fb']
-    });
+        //判断有没有引入antd的Table
+        if (
+          path.isImportDeclaration() &&
+          path.get("source").node.value === "antd" &&
+          path.node.specifiers.find((item) => item.imported.name === "Table")
+        ) {
+          //删除antd原本的table引用
+          for (const [name, binding] of Object.entries(path.scope.bindings)) {
+            if (binding.kind === "module") {
+              if (binding.identifier.name === "Table") {
+                binding.path.remove();
+              }
+            }
+          }
 
-    document.getElementById('status').textContent = 'Device found: ' + device.name;
-
-    // Connect to GATT server
-    gattServer = await device.gatt.connect();
-    const service = await gattServer.getPrimaryService('0000ff01-0000-1000-8000-00805f9b34fb'); // Replace with appropriate service
-    writeCharacteristic = await service.getCharacteristic('0000ff01-0000-1000-8000-00805f9b34fb'); // Replace with write characteristic
-
-    document.getElementById('status').textContent = 'Connected to: ' + device.name;
-  } catch (error) {
-    console.error('Connection failed', error);
-    document.getElementById('status').textContent = 'Connection failed';
-  }
-});
-
-// Handle drag and drop
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', (event) => {
-  event.preventDefault();
-  dropZone.classList.add('dragover');
-});
-
-dropZone.addEventListener('dragleave', () => {
-  dropZone.classList.remove('dragover');
-});
-
-dropZone.addEventListener('drop', (event) => {
-  event.preventDefault();
-  dropZone.classList.remove('dragover');
-
-  const files = event.dataTransfer.files;
-  if (files.length > 0) {
-    fileToSend = files[0];
-    document.getElementById('status').textContent = `File ready to send: ${fileToSend.name}`;
-  }
-});
-
-// Send file over Bluetooth
-async function sendFile(file) {
-  if (!gattServer || !writeCharacteristic) {
-    alert('Not connected to a Bluetooth device');
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = async function(event) {
-    const fileData = new Uint8Array(event.target.result);
-    
-    // Split the file into chunks and send over Bluetooth
-    const CHUNK_SIZE = 20; // Bluetooth LE has a small packet size limit
-    for (let i = 0; i < fileData.length; i += CHUNK_SIZE) {
-      const chunk = fileData.slice(i, i + CHUNK_SIZE);
-      await writeCharacteristic.writeValue(chunk);
-      console.log('Sent chunk:', chunk);
-    }
-
-    document.getElementById('status').textContent = 'File sent successfully!';
+          //创建新的import 引入自己的Table
+          const importDefaultSpecifier = [
+            babelTypes.ImportDefaultSpecifier(babelTypes.Identifier("Table")),
+          ];
+          const importDeclaration = babelTypes.ImportDeclaration(
+            importDefaultSpecifier,
+            babelTypes.StringLiteral(TARGET_PKG_NAME)
+          );
+          path.insertBefore(importDeclaration);
+        }
+      },
+    },
   };
-
-  reader.readAsArrayBuffer(file);
-}
-
-// Add a listener to send the file when it's ready
-dropZone.addEventListener('click', () => {
-  if (fileToSend) {
-    sendFile(fileToSend);
-  }
-});
+};
