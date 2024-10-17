@@ -8,6 +8,9 @@
   "scripts": {
     "build": "babel src -d lib"
   },
+  "files": [
+    "lib"
+  ],
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
