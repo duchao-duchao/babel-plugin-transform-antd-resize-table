@@ -3,11 +3,12 @@ module.exports = function ({ types: babelTypes }) {
     // 对import转码
     visitor: {
       "ImportDeclaration|VariableDeclaration"(path, state) {
-        const TARGET_PKG_NAME = "custom-antd-resize-table";
+        const { optionName } = state.opts;
+        const TARGET_PKG_NAME = optionName || "custom-antd-resize-table";
         //排除自定义Table组件的import
         if (
           state.file.opts.filename &&
-          state.file.opts.filename.includes("resize-table")
+          state.file.opts.filename.includes(TARGET_PKG_NAME)
         ) {
           return;
         }

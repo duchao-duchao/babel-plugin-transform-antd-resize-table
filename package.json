@@ -1,6 +1,6 @@
 {
   "name": "babel-plugin-transform-antd-resize-table",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "改变全局所有table的引用",
   "main": "lib/index.js",
   "author": "duchao",
